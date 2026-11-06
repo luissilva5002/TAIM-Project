@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D UI Teleportation Sandbox</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="w-screen h-screen relative overflow-hidden select-none">
+
+    <!-- 3D Render Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing"></div>
+
+    <!-- Teleport Warp Speed Lines Overlay Effect -->
+    <canvas id="speed-overlay" class="absolute inset-0 w-full h-full z-10 opacity-0"></canvas>
+
+    <!-- TOP HUD BAR -->
+    <header class="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
+        
+        <!-- App Title & Status Badge -->
+        <div class="glass-panel rounded-xl px-5 py-3 flex items-center space-x-4 pointer-events-auto">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#00f0ff]"></div>
+            <div>
+                <h1 class="font-tech text-xl font-bold tracking-wider text-white flex items-center gap-2">
+                    TELEPORT <span class="text-cyan-400">SANDBOX</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">v2.4</span>
+                </h1>
+                <p class="text-xs text-slate-400">Dual-Mode 3D UI Spatial Navigation System</p>
+            </div>
+        </div>
+
+        <!-- Mode Indicator & Jump Stats HUD -->
+        <div class="glass-panel rounded-xl px-6 py-2.5 flex items-center gap-6 pointer-events-auto">
+            
+            <!-- Current Mode Display -->
+            <div class="flex items-center gap-3 border-r border-slate-700/60 pr-6">
+                <i id="mode-icon-hud" data-lucide="arrow-down-to-dot" class="text-cyan-400 w-6 h-6"></i>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Active Mode</div>
+                    <div id="hud-mode-text" class="font-tech text-lg font-bold text-cyan-300">GROUND ARC MODE</div>
+                </div>
+            </div>
+
+            <!-- Altitude Display -->
+            <div class="border-r border-slate-700/60 pr-6">
+                <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Altitude</div>
+                <div id="hud-altitude" class="font-tech text-lg font-bold text-slate-100">2.0m</div>
+            </div>
+
+            <!-- Jump Counters -->
+            <div class="flex items-center gap-4">
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Jumps</div>
+                    <div id="hud-total-jumps" class="font-tech text-lg font-bold text-amber-400">0</div>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Ground / Air</div>
+                    <div id="hud-jump-ratio" class="font-tech text-lg font-bold text-cyan-400">0 / 0</div>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div id="teleport-status-badge" class="px-3 py-1 rounded-md text-xs font-bold font-tech bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                READY
+            </div>
+        </div>
+
+        <!-- Controls Toggle Buttons -->
+        <div class="flex items-center gap-3 pointer-events-auto">
+            <button id="btn-toggle-phone" class="glass-panel hover:bg-slate-800/80 text-cyan-300 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition border border-cyan-500/40 active:scale-95">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                <span>Companion App</span>
+            </button>
+            <button id="btn-flutter-code" class="glass-panel hover:bg-slate-800/80 text-purple-300 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition border border-purple-500/40 active:scale-95">
+                <i data-lucide="code-2" class="w-4 h-4"></i>
+                <span>Flutter WS Guide</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- LEFT SIDE: CONTROLS & INSTRUCTIONS OVERLAY -->
+    <div class="absolute top-24 left-4 z-20 w-72 pointer-events-auto space-y-4 hidden md:block">
+        <div class="glass-panel rounded-xl p-4">
+            <h3 class="font-tech text-sm font-bold tracking-wider text-cyan-400 mb-2 flex items-center gap-2">
+                <i data-lucide="keyboard" class="w-4 h-4"></i> PC CONTROLS (VERSION 1)
+            </h3>
+            <ul class="text-xs text-slate-300 space-y-1.5 font-mono">
+                <li class="flex justify-between"><span>Aim Pitch/Yaw</span> <span class="text-cyan-300">Mouse Drag</span></li>
+                <li class="flex justify-between"><span>Adjust Distance</span> <span class="text-cyan-300">Scroll / W-S / Up-Down</span></li>
+                <li class="flex justify-between"><span>Trigger Teleport</span> <span class="text-amber-400 font-bold">Spacebar / Left Click</span></li>
+                <li class="flex justify-between"><span>Toggle Ground Mode</span> <span class="text-cyan-300">G Key</span></li>
+                <li class="flex justify-between"><span>Toggle Air Mode</span> <span class="text-cyan-300">F Key</span></li>
+                <li class="flex justify-between"><span>Reset Camera</span> <span class="text-cyan-300">R Key</span></li>
+            </ul>
+        </div>
+
+        <!-- Mode Description Info Box -->
+        <div id="mode-info-card" class="glass-panel rounded-xl p-4 border-l-4 border-l-cyan-400">
+            <h4 id="mode-info-title" class="font-tech font-bold text-sm text-cyan-300 mb-1">Ground Parabola Arc</h4>
+            <p id="mode-info-desc" class="text-xs text-slate-300 leading-relaxed">
+                Projects a dynamic parabolic trajectory curve to ground surfaces. Land safely on terrain or elevated platforms. Single-jump constrained.
+            </p>
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE: SIMULATED FLUTTER SMARTPHONE COMPANION APP (VERSION 2) -->
+    <div id="phone-container" class="absolute top-20 right-4 z-30 transition-all duration-300 transform translate-x-0">
+        <div class="glass-phone w-[310px] h-[560px] rounded-[36px] p-4 flex flex-col justify-between relative overflow-hidden">
+            
+            <!-- Phone Notch & Status Bar -->
+            <div class="w-full flex justify-between items-center text-[10px] text-slate-400 px-3 pt-1">
+                <span class="font-mono">18:05</span>
+                <div class="w-20 h-4 bg-slate-900 rounded-b-xl mx-auto flex justify-center items-center">
+                    <div class="w-2 h-2 rounded-full bg-cyan-500/60"></div>
+                </div>
+                <div class="flex items-center gap-1 font-mono">
+                    <i data-lucide="wifi" class="w-3 h-3 text-cyan-400"></i>
+                    <span>5G</span>
+                </div>
+            </div>
+
+            <!-- Flutter App Header inside Smartphone -->
+            <div class="bg-slate-900/90 rounded-2xl p-3 border border-cyan-500/20 mt-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
+                        <span class="font-tech font-bold text-xs text-cyan-300">FLUTTER CONTROLLER</span>
+                    </div>
+                    <span id="ws-status-chip" class="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        SIMULATED LINK
+                    </span>
+                </div>
+            </div>
+
+            <!-- Mode Switcher Segmented Control -->
+            <div class="bg-slate-900/80 rounded-xl p-1 flex gap-1 border border-slate-800">
+                <button id="phone-btn-ground" class="flex-1 py-1.5 rounded-lg text-xs font-tech font-bold transition bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(0,240,255,0.4)]">
+                    GROUND
+                </button>
+                <button id="phone-btn-air" class="flex-1 py-1.5 rounded-lg text-xs font-tech font-bold text-slate-400 hover:text-white transition">
+                    AIR / FLY
+                </button>
+            </div>
+
+            <!-- Virtual Gyroscope / Aim Controller Touch Pad -->
+            <div class="flex flex-col items-center">
+                <div class="text-[10px] font-mono text-cyan-400/80 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <i data-lucide="compass" class="w-3 h-3"></i> Aim Touch / Gyro Pad
+                </div>
+                <div id="aim-pad" class="w-44 h-44 rounded-full relative flex items-center justify-center cursor-crosshair touch-none">
+                    <!-- Crosshair grid lines -->
+                    <div class="absolute inset-x-0 top-1/2 border-t border-cyan-500/20"></div>
+                    <div class="absolute inset-y-0 left-1/2 border-l border-cyan-500/20"></div>
+                    
+                    <!-- Aim Puck -->
+                    <div id="aim-puck" class="w-8 h-8 rounded-full bg-cyan-400 border-2 border-white flex items-center justify-center">
+                        <div class="w-2 h-2 rounded-full bg-slate-950"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distance / Altitude Depth Slider -->
+            <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-1">
+                <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-400">TARGET DEPTH</span>
+                    <span id="phone-depth-val" class="text-cyan-300 font-bold">15.0m</span>
+                </div>
+                <input id="phone-depth-slider" type="range" min="3" max="50" step="0.5" value="15" class="w-full">
+            </div>
+
+            <!-- Big Teleport Action Trigger Button -->
+            <button id="phone-btn-teleport" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-400 to-cyan-500 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-tech text-lg font-bold tracking-wider shadow-[0_0_20px_rgba(0,240,255,0.5)] active:scale-95 transition flex items-center justify-center gap-2">
+                <i data-lucide="zap" class="w-5 h-5 fill-slate-950"></i>
+                <span>TELEPORT NOW</span>
+            </button>
+
+            <!-- Home Bar Indicator -->
+            <div class="w-28 h-1 bg-slate-700 rounded-full mx-auto mb-0.5"></div>
+        </div>
+    </div>
+
+    <!-- FLUTTER CODE & WEBSOCKET GUIDE MODAL -->
+    <div id="modal-flutter" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-3xl rounded-2xl p-6 border border-purple-500/40 max-h-[85vh] flex flex-col justify-between shadow-2xl">
+            <div>
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                            <i data-lucide="smartphone" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-tech text-xl font-bold text-white">Flutter Companion App Integration</h2>
+                            <p class="text-xs text-slate-400">Stream sensor data over local WebSocket directly into this Three.js engine</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-modal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <p class="text-xs text-slate-300 mb-3 leading-relaxed">
+                    This web engine exposes a WebSocket listener. Run your Flutter app on mobile connected to the same Wi-Fi, then stream real-time pitch, yaw, depth slider, and teleport action commands using JSON payloads:
+                </p>
+
+                <!-- Flutter Dart Code Snippet -->
+                <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 overflow-x-auto text-xs font-mono text-cyan-300 max-h-60 leading-relaxed">
+<pre><code>// Flutter Companion App - WebSockets + Sensors snippet
+import 'package:web_socket_channel/io.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+
+final channel = IOWebSocketChannel.connect('ws://YOUR_PC_LOCAL_IP:8080');
+
+// Stream Gyroscope / Orientation updates (Pitch & Yaw)
+gyroscopeEvents.listen((GyroscopeEvent event) {
+  channel.sink.add(jsonEncode({
+    'type': 'AIM',
+    'pitch': event.x * 0.05,
+    'yaw': event.y * 0.05,
+  }));
+});
+
+// Send Teleport Action Command
+void triggerTeleport() {
+  channel.sink.add(jsonEncode({
+    'type': 'TELEPORT',
+    'mode': isAirMode ? 'AIR' : 'GROUND',
+    'depth': currentSliderDepth,
+  }));
+}</code></pre>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-800">
+                <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Local WS Listener: <code class="text-cyan-300">ws://localhost:8080</code></span>
+                </div>
+                <button id="btn-close-modal-2" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-tech font-bold text-sm transition">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App entry (ES modules: serve over http, see README) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
