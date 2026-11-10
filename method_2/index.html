@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D UI Teleportation Sandbox</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="w-screen h-screen relative overflow-hidden select-none">
+
+    <!-- 3D Render Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- Teleport Warp Speed Lines Overlay Effect -->
+    <canvas id="speed-overlay" class="absolute inset-0 w-full h-full z-10 opacity-0"></canvas>
+
+    <!-- TOP HUD BAR -->
+    <header class="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
+        
+        <!-- App Title & Status Badge -->
+        <div class="glass-panel rounded-xl px-5 py-3 flex items-center space-x-4 pointer-events-auto">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#00f0ff]"></div>
+            <div>
+                <h1 class="font-tech text-xl font-bold tracking-wider text-white flex items-center gap-2">
+                    TELEPORT <span class="text-cyan-400">SANDBOX</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">v2.4 · M2</span>
+                </h1>
+                <p class="text-xs text-slate-400">Dual-Mode 3D UI Spatial Navigation System</p>
+            </div>
+        </div>
+
+        <!-- Mode Indicator & Jump Stats HUD -->
+        <div class="glass-panel rounded-xl px-6 py-2.5 flex items-center gap-6 pointer-events-auto">
+            
+            <!-- Current Mode Display -->
+            <div class="flex items-center gap-3 border-r border-slate-700/60 pr-6">
+                <i id="mode-icon-hud" data-lucide="arrow-down-to-dot" class="text-cyan-400 w-6 h-6"></i>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Active Mode</div>
+                    <div id="hud-mode-text" class="font-tech text-lg font-bold text-cyan-300">GROUND ARC MODE</div>
+                </div>
+            </div>
+
+            <!-- Altitude Display -->
+            <div class="border-r border-slate-700/60 pr-6">
+                <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Altitude</div>
+                <div id="hud-altitude" class="font-tech text-lg font-bold text-slate-100">2.0m</div>
+            </div>
+
+            <!-- Jump Counters -->
+            <div class="flex items-center gap-4">
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Jumps</div>
+                    <div id="hud-total-jumps" class="font-tech text-lg font-bold text-amber-400">0</div>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Ground / Air</div>
+                    <div id="hud-jump-ratio" class="font-tech text-lg font-bold text-cyan-400">0 / 0</div>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div id="teleport-status-badge" class="px-3 py-1 rounded-md text-xs font-bold font-tech bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                READY
+            </div>
+        </div>
+
+        <!-- Controls Toggle Buttons -->
+        <div class="flex items-center gap-3 pointer-events-auto">
+            <button id="btn-toggle-monitor" class="glass-panel hover:bg-slate-800/80 text-cyan-300 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition border border-cyan-500/40 active:scale-95">
+                <i data-lucide="keyboard" class="w-4 h-4"></i>
+                <span>Input Monitor</span><kbd class="text-[10px] px-1.5 rounded bg-slate-800 border border-slate-600">P</kbd>
+            </button>
+        </div>
+    </header>
+
+    <!-- LEFT SIDE: CONTROLS & INSTRUCTIONS OVERLAY -->
+    <div class="absolute top-24 left-4 z-20 w-72 pointer-events-auto space-y-4 hidden md:block">
+        <div class="glass-panel rounded-xl p-4">
+            <h3 class="font-tech text-sm font-bold tracking-wider text-cyan-400 mb-2 flex items-center gap-2">
+                <i data-lucide="keyboard" class="w-4 h-4"></i> KEYBOARD ONLY (METHOD 2)
+            </h3>
+            <ul class="text-xs text-slate-300 space-y-1.5 font-mono">
+                <li class="flex justify-between"><span>Aim Yaw / Pitch</span> <span class="text-cyan-300">Arrow Keys</span></li>
+                <li class="flex justify-between"><span>Fine Aim (slow)</span> <span class="text-cyan-300">Hold Shift</span></li>
+                <li class="flex justify-between"><span>Adjust Distance</span> <span class="text-cyan-300">W / S</span></li>
+                <li class="flex justify-between"><span>Trigger Teleport</span> <span class="text-amber-400 font-bold">Space / Enter</span></li>
+                <li class="flex justify-between"><span>Ground Mode</span> <span class="text-cyan-300">G</span></li>
+                <li class="flex justify-between"><span>Air Mode</span> <span class="text-cyan-300">F</span></li>
+                <li class="flex justify-between"><span>Reset Camera</span> <span class="text-cyan-300">R</span></li>
+                <li class="flex justify-between"><span>Toggle Monitor</span> <span class="text-cyan-300">P</span></li>
+            </ul>
+        </div>
+
+        <!-- Mode Description Info Box -->
+        <div id="mode-info-card" class="glass-panel rounded-xl p-4 border-l-4 border-l-cyan-400">
+            <h4 id="mode-info-title" class="font-tech font-bold text-sm text-cyan-300 mb-1">Ground Parabola Arc</h4>
+            <p id="mode-info-desc" class="text-xs text-slate-300 leading-relaxed">
+                Projects a dynamic parabolic trajectory curve to ground surfaces. Land safely on terrain or elevated platforms. Single-jump constrained.
+            </p>
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE: INPUT MONITOR (keyboard visualizer) -->
+    <div id="monitor-container" class="absolute top-20 right-4 z-30 transition-all duration-300 transform translate-x-0 pointer-events-none">
+        <div class="glass-phone w-[310px] rounded-[24px] p-4 space-y-4">
+
+            <div class="flex justify-between items-center">
+                <span class="font-tech font-bold text-sm tracking-wider text-cyan-300">INPUT MONITOR</span>
+                <div class="flex gap-1 text-[10px] font-tech font-bold">
+                    <span id="mon-mode-ground" class="px-2 py-0.5 rounded">GROUND</span>
+                    <span id="mon-mode-air" class="px-2 py-0.5 rounded">AIR</span>
+                </div>
+            </div>
+
+            <!-- Keycaps -->
+            <div class="flex items-end justify-between">
+                <div class="grid grid-cols-3 gap-1 w-[120px]">
+                    <div></div><div class="keycap " data-key="ArrowUp">▲</div><div></div>
+                    <div class="keycap " data-key="ArrowLeft">◀</div><div class="keycap " data-key="ArrowDown">▼</div><div class="keycap " data-key="ArrowRight">▶</div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <div class="flex gap-1"><div class="keycap " data-key="KeyW">W</div><div class="keycap " data-key="KeyG">G</div><div class="keycap " data-key="KeyF">F</div></div>
+                    <div class="flex gap-1"><div class="keycap " data-key="KeyS">S</div><div class="keycap " data-key="KeyR">R</div><div class="keycap " data-key="ShiftLeft">⇧</div></div>
+                </div>
+            </div>
+            <div class="keycap keycap-wide" data-key="Space">SPACE · TELEPORT</div>
+
+            <!-- Aim dial + readouts -->
+            <div class="flex items-center gap-4">
+                <svg viewBox="-50 -50 100 100" class="w-28 h-28 shrink-0">
+                    <circle r="46" fill="rgba(7,11,20,0.8)" stroke="rgba(0,240,255,0.4)" stroke-width="1.5"/>
+                    <circle r="30" fill="none" stroke="rgba(0,240,255,0.15)"/>
+                    <line x1="-46" y1="0" x2="46" y2="0" stroke="rgba(0,240,255,0.15)"/>
+                    <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(0,240,255,0.15)"/>
+                    <text y="-35" text-anchor="middle" font-size="8" fill="#00f0ff" font-family="Rajdhani">N</text>
+                    <g id="mon-needle"><polygon points="0,-40 -4,0 4,0" fill="#00f0ff"/><circle r="3" fill="#fff"/></g>
+                </svg>
+                <div class="flex-1 space-y-2 font-mono text-xs">
+                    <div class="flex justify-between"><span class="text-slate-400">YAW</span><span id="mon-yaw" class="text-cyan-300 font-bold">0°</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">PITCH</span><span id="mon-pitch" class="text-cyan-300 font-bold">0°</span></div>
+                    <div class="h-2 rounded bg-slate-800 border border-slate-700 relative overflow-hidden">
+                        <div class="absolute inset-y-0 left-1/2 w-px bg-slate-500"></div>
+                        <div id="mon-pitch-bar" class="absolute inset-y-0 bg-cyan-400/80"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Depth gauge -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-400">TARGET DEPTH</span>
+                    <span id="mon-depth-val" class="text-cyan-300 font-bold">15.0m</span>
+                </div>
+                <div class="h-3 rounded bg-slate-800 border border-slate-700 overflow-hidden">
+                    <div id="mon-depth-bar" class="h-full bg-gradient-to-r from-cyan-500 to-teal-300"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App entry (ES modules: serve over http, see README) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
